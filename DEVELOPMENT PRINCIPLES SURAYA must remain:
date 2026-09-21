@@ -1,0 +1,11 @@
+.modular
+.extensible
+.model-independent
+.auditable
+.permission-controlled
+.cloud-capable
+.locally usable
+.upgradeable
+.testable
+No new capability should bypass the Core contracts.
+No Executor capability should bypass Guardian controls.
