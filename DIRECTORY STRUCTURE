@@ -1,0 +1,59 @@
+SURAYA-AI/
+│
+├── README.md
+├── SURAYA_CORE_SPEC.md
+│
+├── core/
+│   │
+│   ├── __init__.py
+│   │
+│   ├── contracts/
+│   │   ├── __init__.py
+│   │   └── types.py
+│   │
+│   ├── brain/
+│   │   ├── __init__.py
+│   │   └── brain.py
+│   │
+│   ├── guardian/
+│   │   ├── __init__.py
+│   │   ├── guardian.py
+│   │   └── policy.py
+│   │
+│   ├── executor/
+│   │   ├── __init__.py
+│   │   └── runtime.py
+│   │
+│   ├── models/
+│   │   ├── __init__.py
+│   │   └── router.py
+│   │
+│   ├── memory/
+│   │   ├── __init__.py
+│   │   └── store.py
+│   │
+│   ├── tools/
+│   │   ├── __init__.py
+│   │   └── registry.py
+│   │
+│   ├── audit/
+│   │   ├── __init__.py
+│   │   └── log.py
+│   │
+│   └── runtime/
+│       ├── __init__.py
+│       └── system.py
+│
+├── backend/
+│   │
+│   ├── __init__.py
+│   ├── requirements.txt
+│   │
+│   └── app/
+│       ├── __init__.py
+│       └── main.py
+│
+├── docs/
+│   └── CLOUD_STORAGE.md
+│
+└── data/
