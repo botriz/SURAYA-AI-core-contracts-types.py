@@ -1,0 +1,37 @@
+CREATOR
+   │
+   ▼
+COMMAND
+   │
+   ▼
+BRAIN
+   │
+   ▼
+PLAN
+   │
+   ▼
+GUARDIAN
+   │
+   ├── BLOCK
+   │
+   ├── APPROVAL REQUIRED
+   │
+   └── ALLOW
+          │
+          ▼
+       EXECUTOR
+          │
+          ▼
+        TOOL
+          │
+          ▼
+       RESULT
+          │
+          ▼
+       GUARDIAN
+          │
+          ▼
+      VERIFICATION
+          │
+          ▼
+       CREATOR
