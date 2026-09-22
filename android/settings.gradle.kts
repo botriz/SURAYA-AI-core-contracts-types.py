@@ -1,3 +1,5 @@
+import org.gradle.api.initialization.resolve.RepositoriesMode
+
 pluginManagement {
     repositories {
         google()
@@ -7,7 +9,9 @@ pluginManagement {
 }
 
 dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositoriesMode.set(
+        RepositoriesMode.FAIL_ON_PROJECT_REPOS
+    )
 
     repositories {
         google()
@@ -16,4 +20,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "SurayaAI"
+
 include(":app")
