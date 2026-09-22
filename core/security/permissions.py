@@ -24,29 +24,37 @@ class PermissionManager:
         granted: bool = False,
         metadata: dict[str, str] | None = None,
     ) -> Permission:
-        permission = Permission(
-            name=name,
-            description=description,
-            granted=granted,
-            metadata=metadata or {},
-        )
-
         with self._lock:
-            self._permissions[name] = permission
+            existing = self._permissions.get(name)
 
-        return permission
+            if existing is not None:
+                return existing
+
+            permission = Permission(
+                name=name,
+                description=description,
+                granted=granted,
+                metadata=metadata or {},
+            )
+
+            self._permissions[name] = permission
+            return permission
 
     def grant(self, name: str) -> Permission:
         with self._lock:
-            permission = self._permissions[name]
-            permission.granted = True
-            return permission
+            if name not in self._permissions:
+                self.register(name)
+
+            self._permissions[name].granted = True
+            return self._permissions[name]
 
     def revoke(self, name: str) -> Permission:
         with self._lock:
-            permission = self._permissions[name]
-            permission.granted = False
-            return permission
+            if name not in self._permissions:
+                self.register(name)
+
+            self._permissions[name].granted = False
+            return self._permissions[name]
 
     def check(self, name: str) -> bool:
         with self._lock:
