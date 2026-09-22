@@ -20,5 +20,6 @@ class LocalModel:
 
         return (
             "SURAYA local model placeholder.\n\n"
-            f"Prompt received:\n{prompt}"
+            "Prompt received:\n"
+            f"{prompt}"
         )
