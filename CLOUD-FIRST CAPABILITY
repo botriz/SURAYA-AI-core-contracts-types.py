@@ -1,0 +1,14 @@
+SURAYA should be able to work with:
+
+LOCAL STORAGE
+       +
+CLOUD STORAGE
+       +
+PRIVATE SERVER
+       +
+REMOTE COMPUTE
+
+The system must remain functional
+when cloud connectivity is
+unavailable for operations that
+do not require the cloud.
