@@ -6,21 +6,16 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from core.runtime.container import create_container
-from core.tools.builtin import register_builtin_tools
+from core.system.status import build_status
 
 
 app = FastAPI(
     title="SURAYA AI",
-    version="0.3.0",
+    version="0.4.0",
     description="Private Personal AI Operating System",
 )
 
 container = create_container()
-
-register_builtin_tools(
-    container.tools,
-    container.executor,
-)
 
 
 class CommandRequest(BaseModel):
@@ -32,29 +27,59 @@ class MemoryRequest(BaseModel):
     value: Any
 
 
+class SecretRequest(BaseModel):
+    value: str = Field(..., min_length=1)
+
+
 class CloudUploadRequest(BaseModel):
     local_path: str
     remote_path: str
     provider: str = "local"
 
 
+class PermissionRequest(BaseModel):
+    name: str
+
+
+class ApprovalRequestBody(BaseModel):
+    approval_id: str
+
+
 @app.get("/")
 def root() -> dict[str, Any]:
     return {
         "name": "SURAYA AI",
-        "version": "0.3.0",
+        "version": "0.4.0",
         "status": "online",
-        "runtime_running": container.runtime.running,
     }
 
 
 @app.get("/health")
 def health() -> dict[str, Any]:
+    status = build_status(container)
+
     return {
         "status": "healthy",
-        "runtime_running": container.runtime.running,
-        "tools": len(container.tools.list()),
-        "cloud_providers": container.cloud.list_providers(),
+        "runtime_running": status.runtime_running,
+        "emergency_stop": status.emergency_stop,
+        "tools": status.tool_count,
+        "cloud_providers": status.cloud_provider_count,
+        "pending_approvals": status.pending_approvals,
+    }
+
+
+@app.get("/status")
+def system_status() -> dict[str, Any]:
+    status = build_status(container)
+
+    return {
+        "name": status.name,
+        "version": status.version,
+        "runtime_running": status.runtime_running,
+        "emergency_stop": status.emergency_stop,
+        "tool_count": status.tool_count,
+        "cloud_provider_count": status.cloud_provider_count,
+        "pending_approvals": status.pending_approvals,
     }
 
 
@@ -72,11 +97,6 @@ def list_tools() -> list[dict[str, Any]]:
     ]
 
 
-@app.get("/cloud/providers")
-def cloud_providers() -> list[str]:
-    return container.cloud.list_providers()
-
-
 @app.post("/command")
 def command(request: CommandRequest) -> dict[str, Any]:
     if not container.runtime.running:
@@ -85,22 +105,10 @@ def command(request: CommandRequest) -> dict[str, Any]:
             detail="SURAYA runtime is stopped.",
         )
 
-    result = container.runtime.handle_command(
+    return container.runtime.handle_command(
         request.command,
         session_id=request.session_id,
     )
-
-    return result
-
-
-@app.post("/runtime/stop")
-def stop_runtime() -> dict[str, Any]:
-    container.runtime.stop()
-
-    return {
-        "status": "stopped",
-        "runtime_running": container.runtime.running,
-    }
 
 
 @app.post("/runtime/start")
@@ -109,7 +117,27 @@ def start_runtime() -> dict[str, Any]:
 
     return {
         "status": "started",
-        "runtime_running": container.runtime.running,
+        "running": container.runtime.running,
+    }
+
+
+@app.post("/runtime/stop")
+def stop_runtime() -> dict[str, Any]:
+    container.runtime.stop()
+
+    return {
+        "status": "stopped",
+        "running": container.runtime.running,
+    }
+
+
+@app.post("/runtime/emergency-stop")
+def emergency_stop() -> dict[str, Any]:
+    container.runtime.emergency_stop()
+
+    return {
+        "status": "emergency_stopped",
+        "running": container.runtime.running,
     }
 
 
@@ -134,12 +162,14 @@ def put_memory(
     key: str,
     request: MemoryRequest,
 ) -> dict[str, Any]:
-    container.memory.put(key, request.value)
+    container.memory.put(
+        key,
+        request.value,
+    )
 
     return {
         "status": "stored",
         "key": key,
-        "value": request.value,
     }
 
 
@@ -162,6 +192,137 @@ def delete_memory(key: str) -> dict[str, Any]:
 @app.get("/audit")
 def audit() -> list[dict[str, Any]]:
     return container.audit.read_all()
+
+
+@app.get("/approvals")
+def approvals() -> list[dict[str, Any]]:
+    return [
+        {
+            "id": item.id,
+            "status": item.status.value,
+            "reason": item.reason,
+            "tool": item.action.tool,
+            "action": item.action.action,
+            "parameters": item.action.parameters,
+        }
+        for item in container.guardian.approvals.all()
+    ]
+
+
+@app.post("/approvals/approve")
+def approve(request: ApprovalRequestBody) -> dict[str, Any]:
+    try:
+        item = container.guardian.approvals.approve(
+            request.approval_id
+        )
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail="Approval request not found.",
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=str(exc),
+        ) from exc
+
+    return {
+        "id": item.id,
+        "status": item.status.value,
+    }
+
+
+@app.post("/approvals/deny")
+def deny(request: ApprovalRequestBody) -> dict[str, Any]:
+    try:
+        item = container.guardian.approvals.deny(
+            request.approval_id
+        )
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail="Approval request not found.",
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=str(exc),
+        ) from exc
+
+    return {
+        "id": item.id,
+        "status": item.status.value,
+    }
+
+
+@app.get("/permissions")
+def permissions() -> list[dict[str, Any]]:
+    return [
+        {
+            "name": item.name,
+            "description": item.description,
+            "granted": item.granted,
+            "metadata": item.metadata,
+        }
+        for item in container.permissions.list()
+    ]
+
+
+@app.post("/permissions/{name}/grant")
+def grant_permission(name: str) -> dict[str, Any]:
+    permission = container.permissions.grant(name)
+
+    return {
+        "name": permission.name,
+        "granted": permission.granted,
+    }
+
+
+@app.post("/permissions/{name}/revoke")
+def revoke_permission(name: str) -> dict[str, Any]:
+    permission = container.permissions.revoke(name)
+
+    return {
+        "name": permission.name,
+        "granted": permission.granted,
+    }
+
+
+@app.put("/secrets/{key}")
+def set_secret(
+    key: str,
+    request: SecretRequest,
+) -> dict[str, Any]:
+    container.secrets.set(
+        key,
+        request.value,
+    )
+
+    return {
+        "status": "stored",
+        "key": key,
+    }
+
+
+@app.delete("/secrets/{key}")
+def delete_secret(key: str) -> dict[str, Any]:
+    deleted = container.secrets.delete(key)
+
+    if not deleted:
+        raise HTTPException(
+            status_code=404,
+            detail="Secret not found.",
+        )
+
+    return {
+        "status": "deleted",
+        "key": key,
+    }
+
+
+@app.get("/cloud/providers")
+def cloud_providers() -> list[str]:
+    return container.cloud.list_providers()
 
 
 @app.post("/cloud/upload")
