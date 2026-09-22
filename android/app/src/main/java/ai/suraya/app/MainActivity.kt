@@ -21,6 +21,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -28,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlin.concurrent.thread
 
 data class ChatMessage(
     val text: String,
@@ -36,25 +38,37 @@ data class ChatMessage(
 
 class MainActivity : ComponentActivity() {
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    private val api = SurayaApi(
+        baseUrl = "http://10.0.2.2:8000",
+    )
+
+    override fun onCreate(
+        savedInstanceState: Bundle?,
+    ) {
         super.onCreate(savedInstanceState)
 
         setContent {
             MaterialTheme {
-                SurayaApp()
+                SurayaApp(api)
             }
         }
     }
 }
 
-@androidx.compose.runtime.Composable
-private fun SurayaApp() {
+@Composable
+private fun SurayaApp(
+    api: SurayaApi,
+) {
     val messages = remember {
         mutableStateListOf<ChatMessage>()
     }
 
     var input by remember {
         mutableStateOf("")
+    }
+
+    var runtimeStatus by remember {
+        mutableStateOf("UNKNOWN")
     }
 
     Scaffold(
@@ -91,12 +105,35 @@ private fun SurayaApp() {
                 ) {
                     Text("Guardian: ACTIVE")
                     Text("Executor: READY")
-                    Text("Runtime: READY")
+                    Text("Runtime: $runtimeStatus")
                 }
             }
 
             Spacer(
-                modifier = Modifier.height(12.dp),
+                modifier = Modifier.height(8.dp),
+            )
+
+            Button(
+                onClick = {
+                    thread {
+                        val result = api.health()
+
+                        runOnUiThread {
+                            runtimeStatus =
+                                if (result.success) {
+                                    "ONLINE"
+                                } else {
+                                    "OFFLINE"
+                                }
+                        }
+                    }
+                },
+            ) {
+                Text("Check System")
+            }
+
+            Spacer(
+                modifier = Modifier.height(8.dp),
             )
 
             LazyColumn(
@@ -108,7 +145,9 @@ private fun SurayaApp() {
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(
-                            text = if (message.fromCreator) {
+                            text = if (
+                                message.fromCreator
+                            ) {
                                 "Creator: ${message.text}"
                             } else {
                                 "SURAYA: ${message.text}"
@@ -128,7 +167,9 @@ private fun SurayaApp() {
             ) {
                 OutlinedTextField(
                     value = input,
-                    onValueChange = { input = it },
+                    onValueChange = {
+                        input = it
+                    },
                     modifier = Modifier.weight(1f),
                     placeholder = {
                         Text("Command...")
@@ -151,14 +192,27 @@ private fun SurayaApp() {
                                 )
                             )
 
-                            messages.add(
-                                ChatMessage(
-                                    text = "Command received. Backend connection will be activated next.",
-                                    fromCreator = false,
-                                )
-                            )
-
                             input = ""
+
+                            thread {
+                                val result =
+                                    api.command(command)
+
+                                runOnUiThread {
+                                    messages.add(
+                                        ChatMessage(
+                                            text =
+                                                if (result.success) {
+                                                    result.body
+                                                } else {
+                                                    result.error
+                                                        ?: "Request failed."
+                                                },
+                                            fromCreator = false,
+                                        )
+                                    )
+                                }
+                            }
                         }
                     },
                 ) {
