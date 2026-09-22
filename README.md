@@ -205,4 +205,91 @@ data/audit.jsonl
 GET
 
 ```text
-/health
+/h# SURAYA AI
+
+Private Personal AI Operating System.
+
+## Architecture
+
+Creator
+↓
+Brain
+↓
+Guardian
+↓
+Executor
+↓
+Tools
+
+## Current Foundation
+
+SURAYA currently contains:
+
+- Core runtime
+- Brain
+- Intent detection
+- Planner
+- Guardian
+- Guardian policy
+- Approval system
+- Executor
+- Tool registry
+- Memory
+- Model router
+- Local model abstraction
+- Cloud storage abstraction
+- Local cloud storage
+- Permissions
+- Secret abstraction
+- Audit logging
+- Knowledge base
+- Project manager
+- Research abstraction
+- Code abstraction
+- Media abstraction
+- Social abstraction
+- Finance abstraction
+- Wealth analysis
+- Analytics
+- Event bus
+- Agent abstraction
+- FastAPI backend
+- Android Creator Console
+- Integration tests
+- Docker deployment foundation
+
+## Important Principle
+
+The system is designed so that advanced tools cannot bypass Guardian controls.
+
+Sensitive operations require additional authorization.
+
+## Current Development State
+
+Version: 0.4.0
+
+The foundation and initial Android/API integration are implemented.
+
+The next major phase is production intelligence:
+
+1. Real model providers
+2. Structured tool calling
+3. Persistent context
+4. Secure authentication
+5. Sandboxed coding
+6. Git/GitHub
+7. Browser/research
+8. Voice
+9. Vision
+10. Media
+11. Social integrations
+12. Financial connectors
+13. Full Guardian Console
+
+## Old Projects
+
+Previous projects are independent.
+
+They are not dependencies of this project.
+
+They can be connected later after SURAYA AI is operational and authorized to manage them.ealth
