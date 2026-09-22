@@ -1,120 +1,75 @@
 from __future__ import annotations
 
-from typing import BinaryIO
-
 from core.cloud.base import CloudFile, CloudStorageProvider
 
 
 class CloudStorageManager:
+    def __init__(self, default_provider: str = "local") -> None:
+        self._providers: dict[str, CloudStorageProvider] = {}
+        self._default_provider = default_provider
 
-    def __init__(self) -> None:
-        self.providers: dict[
-            str,
-            CloudStorageProvider,
-        ] = {}
+    def register(self, provider: CloudStorageProvider) -> None:
+        self._providers[provider.name] = provider
 
-        self.default_provider: str | None = None
+    def remove(self, name: str) -> bool:
+        return self._providers.pop(name, None) is not None
 
-    def register(
-        self,
-        provider: CloudStorageProvider,
-        default: bool = False,
-    ) -> None:
+    def get(self, name: str | None = None) -> CloudStorageProvider:
+        provider_name = name or self._default_provider
 
-        self.providers[
-            provider.name
-        ] = provider
-
-        if (
-            default
-            or self.default_provider is None
-        ):
-            self.default_provider = provider.name
-
-    def get(
-        self,
-        provider_name: str | None = None,
-    ) -> CloudStorageProvider:
-
-        name = (
-            provider_name
-            or self.default_provider
-        )
-
-        if name is None:
-            raise RuntimeError(
-                "No cloud storage provider configured."
+        if provider_name not in self._providers:
+            raise KeyError(
+                f"Cloud provider '{provider_name}' is not registered."
             )
 
-        provider = self.providers.get(
-            name
-        )
+        return self._providers[provider_name]
 
-        if provider is None:
-            raise RuntimeError(
-                f"Cloud provider '{name}' is not registered."
-            )
+    def set_default(self, name: str) -> None:
+        self.get(name)
+        self._default_provider = name
 
-        return provider
+    def list_providers(self) -> list[str]:
+        return sorted(self._providers.keys())
 
     def upload(
         self,
-        source: BinaryIO,
-        destination: str,
-        provider_name: str | None = None,
+        local_path: str,
+        remote_path: str,
+        provider: str | None = None,
     ) -> CloudFile:
-
-        return self.get(
-            provider_name
-        ).upload(
-            source,
-            destination,
+        return self.get(provider).upload(
+            local_path,
+            remote_path,
         )
 
     def download(
         self,
-        path: str,
-        provider_name: str | None = None,
-    ) -> bytes:
-
-        return self.get(
-            provider_name
-        ).download(
-            path
+        remote_path: str,
+        local_path: str,
+        provider: str | None = None,
+    ) -> str:
+        return self.get(provider).download(
+            remote_path,
+            local_path,
         )
 
     def delete(
         self,
-        path: str,
-        provider_name: str | None = None,
+        remote_path: str,
+        provider: str | None = None,
     ) -> bool:
-
-        return self.get(
-            provider_name
-        ).delete(
-            path
-        )
+        return self.get(provider).delete(remote_path)
 
     def exists(
         self,
-        path: str,
-        provider_name: str | None = None,
+        remote_path: str,
+        provider: str | None = None,
     ) -> bool:
-
-        return self.get(
-            provider_name
-        ).exists(
-            path
-        )
+        return self.get(provider).exists(remote_path)
 
     def list(
         self,
         prefix: str = "",
-        provider_name: str | None = None,
+        provider: str | None = None,
     ) -> list[CloudFile]:
-
-        return self.get(
-            provider_name
-        ).list(
-            prefix
-        )
+        return self.get(provider).list(prefix)
