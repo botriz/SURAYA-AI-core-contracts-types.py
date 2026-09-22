@@ -1,22 +1,31 @@
-from core.guardian.approval import ApprovalManager
+from pathlib import Path
+
+from core.contracts.types import (
+    ActionRequest,
+    Decision,
+    RiskLevel,
+)
+from core.guardian.guardian import Guardian
+from core.guardian.policy import GuardianPolicy
 from core.runtime.container import create_container
 from core.security.permissions import PermissionManager
 
 
-def test_container_creation():
+def test_container_creation(tmp_path: Path):
     container = create_container(
-        data_dir="data/test",
-        audit_path="data/test/audit.jsonl",
+        data_dir=str(tmp_path / "data"),
+        audit_path=str(tmp_path / "audit.jsonl"),
     )
 
     assert container.runtime.running is True
     assert "local" in container.cloud.list_providers()
+    assert container.tools.exists("echo")
 
 
-def test_builtin_echo():
+def test_builtin_echo(tmp_path: Path):
     container = create_container(
-        data_dir="data/test_echo",
-        audit_path="data/test_echo/audit.jsonl",
+        data_dir=str(tmp_path / "data"),
+        audit_path=str(tmp_path / "audit.jsonl"),
     )
 
     result = container.runtime.handle_command(
@@ -24,6 +33,7 @@ def test_builtin_echo():
     )
 
     assert result["success"] is True
+    assert result["status"] == "completed"
 
 
 def test_permissions():
@@ -33,36 +43,82 @@ def test_permissions():
         "test.permission",
     )
 
-    assert permissions.check("test.permission") is False
+    assert permissions.check(
+        "test.permission"
+    ) is False
 
     permissions.grant(
         "test.permission",
     )
 
-    assert permissions.check("test.permission") is True
+    assert permissions.check(
+        "test.permission"
+    ) is True
 
     permissions.revoke(
         "test.permission",
     )
 
-    assert permissions.check("test.permission") is False
+    assert permissions.check(
+        "test.permission"
+    ) is False
 
 
-def test_approval_manager():
+def test_guardian_blocks_tool():
+    guardian = Guardian(
+        GuardianPolicy(
+            blocked_tools={"dangerous"},
+        )
+    )
+
+    action = ActionRequest(
+        tool="dangerous",
+        action="execute",
+        risk=RiskLevel.LOW,
+    )
+
+    report = guardian.inspect_action(action)
+
+    assert report.decision == Decision.BLOCK
+
+
+def test_guardian_requires_approval():
+    guardian = Guardian(
+        GuardianPolicy(
+            max_risk_without_approval=RiskLevel.MEDIUM,
+        )
+    )
+
+    action = ActionRequest(
+        tool="test",
+        action="execute",
+        risk=RiskLevel.HIGH,
+    )
+
+    report = guardian.inspect_action(action)
+
+    assert report.decision == Decision.REQUIRE_APPROVAL
+    assert report.approval_request is not None
+
+
+def test_approval_manager(tmp_path: Path):
     container = create_container(
-        data_dir="data/test_approval",
-        audit_path="data/test_approval/audit.jsonl",
+        data_dir=str(tmp_path / "data"),
+        audit_path=str(tmp_path / "audit.jsonl"),
     )
 
     action = container.brain.create_plan(
         "test",
     ).actions[0]
 
-    approvals = ApprovalManager()
-    request = approvals.create(action)
+    request = container.guardian.approvals.create(
+        action,
+    )
 
     assert request.status.value == "pending"
 
-    approvals.approve(request.id)
+    container.guardian.approvals.approve(
+        request.id,
+    )
 
     assert request.status.value == "approved"
