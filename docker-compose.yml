@@ -1,0 +1,9 @@
+services:
+  suraya:
+    build: .
+    container_name: suraya-ai
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
