@@ -51,12 +51,24 @@ class ApprovalManager:
     def approve(self, request_id: str) -> ApprovalRequest:
         with self._lock:
             request = self._requests[request_id]
+
+            if request.status != ApprovalStatus.PENDING:
+                raise ValueError(
+                    f"Approval request is already {request.status.value}."
+                )
+
             request.status = ApprovalStatus.APPROVED
             return request
 
     def deny(self, request_id: str) -> ApprovalRequest:
         with self._lock:
             request = self._requests[request_id]
+
+            if request.status != ApprovalStatus.PENDING:
+                raise ValueError(
+                    f"Approval request is already {request.status.value}."
+                )
+
             request.status = ApprovalStatus.DENIED
             return request
 
@@ -67,3 +79,7 @@ class ApprovalManager:
                 for request in self._requests.values()
                 if request.status == ApprovalStatus.PENDING
             ]
+
+    def all(self) -> list[ApprovalRequest]:
+        with self._lock:
+            return list(self._requests.values())
