@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, Dict, List, Optional
-from uuid import uuid4
 from datetime import datetime, timezone
+from enum import Enum
+from typing import Any
 
 
 class RiskLevel(str, Enum):
@@ -17,17 +16,16 @@ class RiskLevel(str, Enum):
 class Decision(str, Enum):
     ALLOW = "allow"
     BLOCK = "block"
-    APPROVAL_REQUIRED = "approval_required"
+    REQUIRE_APPROVAL = "require_approval"
 
 
 class EventType(str, Enum):
-    COMMAND = "command"
-    PLAN = "plan"
-    GUARDIAN_PRECHECK = "guardian_precheck"
-    ACTION = "action"
-    GUARDIAN_MONITOR = "guardian_monitor"
-    VERIFICATION = "verification"
-    REPORT = "report"
+    COMMAND_RECEIVED = "command_received"
+    PLAN_CREATED = "plan_created"
+    GUARDIAN_DECISION = "guardian_decision"
+    ACTION_STARTED = "action_started"
+    ACTION_COMPLETED = "action_completed"
+    ACTION_BLOCKED = "action_blocked"
     ERROR = "error"
 
 
@@ -35,50 +33,47 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-@dataclass(frozen=True)
+@dataclass
 class CreatorCommand:
-    text: str
-    command_id: str = field(default_factory=lambda: str(uuid4()))
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    command: str
+    session_id: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+    created_at: str = field(default_factory=utc_now)
 
 
-@dataclass(frozen=True)
+@dataclass
 class ActionRequest:
-    name: str
     tool: str
-    arguments: Dict[str, Any] = field(default_factory=dict)
+    action: str
+    parameters: dict[str, Any] = field(default_factory=dict)
     risk: RiskLevel = RiskLevel.LOW
     requires_approval: bool = False
 
 
-@dataclass(frozen=True)
+@dataclass
 class Plan:
     goal: str
-    actions: List[ActionRequest]
-    plan_id: str = field(default_factory=lambda: str(uuid4()))
+    actions: list[ActionRequest] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
-@dataclass(frozen=True)
+@dataclass
 class GuardianDecision:
     decision: Decision
     reason: str
-    plan_id: Optional[str] = None
-    action_name: Optional[str] = None
-    risk: RiskLevel = RiskLevel.LOW
+    approval_id: str | None = None
 
 
-@dataclass(frozen=True)
+@dataclass
 class ExecutionResult:
     success: bool
-    action_name: str
     output: Any = None
-    error: Optional[str] = None
+    error: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
-@dataclass(frozen=True)
+@dataclass
 class AuditEvent:
     event_type: EventType
-    actor: str
-    payload: Dict[str, Any]
-    event_id: str = field(default_factory=lambda: str(uuid4()))
+    payload: dict[str, Any]
     timestamp: str = field(default_factory=utc_now)
