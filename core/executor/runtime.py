@@ -1,70 +1,56 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Dict
+from typing import Any, Callable
 
-from core.contracts.types import (
-    ActionRequest,
-    ExecutionResult,
-)
+from core.contracts.types import ExecutionResult
+
+
+ToolHandler = Callable[..., Any]
 
 
 class Executor:
-    """
-    موتور اجرای SURAYA.
-
-    Executor فقط عملیاتی را اجرا می‌کند که Guardian
-    قبلاً اجازه اجرای آن را داده باشد.
-    """
-
     def __init__(self) -> None:
-        self._handlers: Dict[str, Callable[..., Any]] = {}
+        self._handlers: dict[str, ToolHandler] = {}
 
     def register(
         self,
-        tool_name: str,
-        handler: Callable[..., Any],
+        name: str,
+        handler: ToolHandler,
     ) -> None:
-
-        if not tool_name:
+        if not name.strip():
             raise ValueError("Tool name cannot be empty.")
 
-        if not callable(handler):
-            raise TypeError("Handler must be callable.")
+        self._handlers[name] = handler
 
-        self._handlers[tool_name] = handler
+    def unregister(self, name: str) -> bool:
+        return self._handlers.pop(name, None) is not None
 
-    def unregister(self, tool_name: str) -> None:
-        self._handlers.pop(tool_name, None)
-
-    def has_tool(self, tool_name: str) -> bool:
-        return tool_name in self._handlers
+    def has_tool(self, name: str) -> bool:
+        return name in self._handlers
 
     def execute(
         self,
-        action: ActionRequest,
+        tool: str,
+        parameters: dict[str, Any] | None = None,
     ) -> ExecutionResult:
-
-        handler = self._handlers.get(action.tool)
+        handler = self._handlers.get(tool)
 
         if handler is None:
             return ExecutionResult(
                 success=False,
-                action_name=action.name,
-                error=f"Tool '{action.tool}' is not registered.",
+                error=f"Tool '{tool}' is not registered.",
             )
 
         try:
-            output = handler(**action.arguments)
+            output = handler(**(parameters or {}))
 
             return ExecutionResult(
                 success=True,
-                action_name=action.name,
                 output=output,
             )
 
         except Exception as exc:
             return ExecutionResult(
                 success=False,
-                action_name=action.name,
                 error=str(exc),
             )
