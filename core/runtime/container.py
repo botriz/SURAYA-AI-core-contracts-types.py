@@ -36,8 +36,13 @@ def create_container(
     data_dir: str = "data",
     audit_path: str = "data/audit.jsonl",
 ) -> SurayaContainer:
-    memory = MemoryStore(f"{data_dir}/memory.db")
-    audit = AuditLog(audit_path)
+    memory = MemoryStore(
+        f"{data_dir}/memory.db"
+    )
+
+    audit = AuditLog(
+        audit_path
+    )
 
     tools = ToolRegistry()
     executor = Executor()
@@ -62,6 +67,7 @@ def create_container(
     )
 
     permissions = PermissionManager()
+
     secrets = SecretStore(
         f"{data_dir}/secrets.json",
     )
