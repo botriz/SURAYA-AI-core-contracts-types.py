@@ -1,115 +1,79 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import FrozenSet
-
 from core.contracts.types import (
     ActionRequest,
     Decision,
-    GuardianDecision,
     Plan,
     RiskLevel,
 )
 
 
-@dataclass(frozen=True)
 class GuardianPolicy:
-    """
-    سیاست پایه Guardian.
+    def __init__(
+        self,
+        max_risk_without_approval: RiskLevel = RiskLevel.MEDIUM,
+        blocked_tools: set[str] | None = None,
+        blocked_actions: set[str] | None = None,
+    ) -> None:
+        self.max_risk_without_approval = max_risk_without_approval
+        self.blocked_tools = blocked_tools or set()
+        self.blocked_actions = blocked_actions or set()
 
-    Guardian از Executor بالاتر است و Executor نمی‌تواند
-    این سیاست‌ها را در زمان اجرا تغییر دهد.
-    """
+    def check_plan(
+        self,
+        plan: Plan,
+    ) -> tuple[Decision, str]:
+        if not plan.goal.strip():
+            return Decision.BLOCK, "Plan goal is empty."
 
-    max_risk_without_approval: RiskLevel = RiskLevel.MEDIUM
-
-    blocked_tools: FrozenSet[str] = frozenset()
-
-    blocked_actions: FrozenSet[str] = frozenset()
-
-    def check_plan(self, plan: Plan) -> GuardianDecision:
         if not plan.actions:
-            return GuardianDecision(
-                decision=Decision.BLOCK,
-                reason="Plan contains no executable actions.",
-                plan_id=plan.plan_id,
-            )
+            return Decision.BLOCK, "Plan contains no actions."
 
         for action in plan.actions:
-            decision = self.check_action(
-                action=action,
-                plan_id=plan.plan_id,
-            )
+            decision, reason = self.check_action(action)
 
-            if decision.decision != Decision.ALLOW:
-                return decision
+            if decision == Decision.BLOCK:
+                return decision, reason
 
-        return GuardianDecision(
-            decision=Decision.ALLOW,
-            reason="Plan passed Guardian precheck.",
-            plan_id=plan.plan_id,
-        )
+        return Decision.ALLOW, "Plan passed Guardian policy."
 
     def check_action(
         self,
         action: ActionRequest,
-        plan_id: str | None = None,
-    ) -> GuardianDecision:
-
+    ) -> tuple[Decision, str]:
         if action.tool in self.blocked_tools:
-            return GuardianDecision(
-                decision=Decision.BLOCK,
-                reason=f"Tool '{action.tool}' is blocked by Guardian policy.",
-                plan_id=plan_id,
-                action_name=action.name,
-                risk=action.risk,
+            return (
+                Decision.BLOCK,
+                f"Tool '{action.tool}' is blocked.",
             )
 
-        if action.name in self.blocked_actions:
-            return GuardianDecision(
-                decision=Decision.BLOCK,
-                reason=f"Action '{action.name}' is blocked by Guardian policy.",
-                plan_id=plan_id,
-                action_name=action.name,
-                risk=action.risk,
+        if action.action in self.blocked_actions:
+            return (
+                Decision.BLOCK,
+                f"Action '{action.action}' is blocked.",
             )
 
         if action.requires_approval:
-            return GuardianDecision(
-                decision=Decision.APPROVAL_REQUIRED,
-                reason="Creator approval is required for this action.",
-                plan_id=plan_id,
-                action_name=action.name,
-                risk=action.risk,
+            return (
+                Decision.REQUIRE_APPROVAL,
+                "Action explicitly requires Creator approval.",
             )
 
         if self._risk_value(action.risk) > self._risk_value(
             self.max_risk_without_approval
         ):
-            return GuardianDecision(
-                decision=Decision.APPROVAL_REQUIRED,
-                reason=(
-                    f"Risk level '{action.risk.value}' exceeds "
-                    "the automatic execution threshold."
-                ),
-                plan_id=plan_id,
-                action_name=action.name,
-                risk=action.risk,
+            return (
+                Decision.REQUIRE_APPROVAL,
+                f"Risk level '{action.risk.value}' requires approval.",
             )
 
-        return GuardianDecision(
-            decision=Decision.ALLOW,
-            reason="Action passed Guardian policy.",
-            plan_id=plan_id,
-            action_name=action.name,
-            risk=action.risk,
-        )
+        return Decision.ALLOW, "Action passed Guardian policy."
 
     @staticmethod
-    def _risk_value(level: RiskLevel) -> int:
+    def _risk_value(risk: RiskLevel) -> int:
         return {
             RiskLevel.LOW: 1,
             RiskLevel.MEDIUM: 2,
             RiskLevel.HIGH: 3,
             RiskLevel.CRITICAL: 4,
-        }[level]
+        }[risk]
