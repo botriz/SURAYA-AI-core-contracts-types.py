@@ -1,0 +1,33 @@
+services:
+  api:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    environment:
+      SURAYA_API_TOKEN: ${SURAYA_API_TOKEN:?Set SURAYA_API_TOKEN in .env}
+      SURAYA_SECRET_KEY: ${SURAYA_SECRET_KEY:?Set SURAYA_SECRET_KEY in .env}
+      SURAYA_DATA_DIR: /app/data
+      SURAYA_AUDIT_PATH: /app/data/audit.jsonl
+    volumes:
+      - suraya_core_data:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  suraya_core_data:
