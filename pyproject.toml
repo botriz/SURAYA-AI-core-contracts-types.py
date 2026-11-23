@@ -17,32 +17,7 @@ dependencies = [
 pythonpath = ["."]
 testpaths = ["tests"]
 
-[tool.setuptools]
-packages = [
-    "core",
-    "core.agents",
-    "core.analytics",
-    "core.audit",
-    "core.brain",
-    "core.cloud",
-    "core.code",
-    "core.contracts",
-    "core.events",
-    "core.executor",
-    "core.finance",
-    "core.guardian",
-    "core.knowledge",
-    "core.media",
-    "core.memory",
-    "core.models",
-    "core.projects",
-    "core.research",
-    "core.runtime",
-    "core.security",
-    "core.social",
-    "core.system",
-    "core.tools",
-    "core.wealth",
-    "backend",
-    "backend.app",
-]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["core*", "backend*"]
+exclude = ["tests*"]
