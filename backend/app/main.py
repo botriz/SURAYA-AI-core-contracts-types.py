@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import hmac
+import os
+from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from core.runtime.container import create_container
@@ -15,7 +19,33 @@ app = FastAPI(
     description="Private Personal AI Operating System",
 )
 
-container = create_container()
+data_dir = os.environ.get("SURAYA_DATA_DIR", "data")
+audit_path = os.environ.get("SURAYA_AUDIT_PATH", str(Path(data_dir) / "audit.jsonl"))
+container = create_container(data_dir=data_dir, audit_path=audit_path)
+
+
+@app.middleware("http")
+async def require_api_token(request: Request, call_next):
+    if request.method == "GET" and request.url.path in {"/", "/health"}:
+        return await call_next(request)
+
+    expected = os.environ.get("SURAYA_API_TOKEN", "").strip()
+    if not expected:
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "API access is not configured."},
+        )
+
+    authorization = request.headers.get("authorization", "")
+    scheme, _, supplied = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not supplied or not hmac.compare_digest(supplied, expected):
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Authentication required."},
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return await call_next(request)
 
 
 class CommandRequest(BaseModel):
@@ -293,20 +323,20 @@ def set_secret(
     key: str,
     request: SecretRequest,
 ) -> dict[str, Any]:
-    container.secrets.set(
-        key,
-        request.value,
-    )
+    try:
+        container.secrets.set(key, request.value)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail="Encrypted secret storage is not configured.") from exc
 
-    return {
-        "status": "stored",
-        "key": key,
-    }
+    return {"status": "stored", "key": key}
 
 
 @app.delete("/secrets/{key}")
 def delete_secret(key: str) -> dict[str, Any]:
-    deleted = container.secrets.delete(key)
+    try:
+        deleted = container.secrets.delete(key)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail="Encrypted secret storage is not configured.") from exc
 
     if not deleted:
         raise HTTPException(
@@ -342,8 +372,9 @@ def cloud_upload(
             "file": result,
         }
 
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Source file was not found.") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(
-            status_code=400,
-            detail=str(exc),
-        ) from exc
+        raise HTTPException(status_code=500, detail="Cloud storage operation failed.") from exc

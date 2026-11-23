@@ -1,295 +1,107 @@
-# SURAYA AI
-
-Private Personal AI Operating System
-
-Version: 0.2.0
-
----
-
-## 1. SYSTEM
-
-SURAYA AI is a private, modular, extensible personal AI system.
-
-Main hierarchy:
-
-Creator
-↓
-Brain
-↓
-Guardian
-↓
-Executor
-↓
-Tools
-
-Guardian has control over Executor.
-
----
-
-## 2. CORE COMPONENTS
-
-### Creator
-
-The Creator is the owner and highest authority of the system.
-
-The Creator can:
-
-- send commands
-- approve sensitive operations
-- stop execution
-- restart execution
-- inspect reports
-- inspect audit records
-- configure system policies
-- connect external services
-
----
-
-### Brain
-
-Brain is responsible for:
-
-- understanding commands
-- identifying goals
-- creating plans
-- using memory
-- selecting tools
-- preparing actions
-
-Brain does not directly execute dangerous operations.
-
----
-
-### Guardian
-
-Guardian is the independent inspection and control layer.
-
-Guardian checks:
-
-- commands
-- plans
-- actions
-- permissions
-- risk
-- execution
-- results
-
-Guardian can:
-
-- allow
-- block
-- request Creator approval
-- stop execution
-- verify results
-
-Guardian must not weaken its own security policies.
-
----
-
-### Executor
-
-Executor performs approved actions.
-
-Executor cannot bypass Guardian.
-
-Executor can use registered tools.
-
----
-
-### Tools
-
-Tools are modular capabilities.
-
-Examples:
-
-- browser
-- filesystem
-- code execution
-- Git
-- GitHub
-- cloud storage
-- research
-- image generation
-- audio
-- video
-- social media
-- financial APIs
-
----
-
-## 3. MEMORY
-
-Current memory:
-
-SQLite
-
-Planned memory:
-
-- short-term memory
-- long-term memory
-- semantic memory
-- vector memory
-- knowledge graph
-- experience memory
-- project memory
-- cloud memory
-
----
-
-## 4. MODEL ROUTER
-
-SURAYA does not depend on one AI model.
-
-Models are connected through:
-
-core/models/router.py
-
-This allows future integration of:
-
-- local models
-- private models
-- cloud models
-- multiple AI providers
-- specialized models
-
-The Core should remain independent from any specific provider.
-
----
-
-## 5. CLOUD STORAGE
-
-SURAYA supports a provider-independent cloud storage architecture.
-
-Planned providers:
-
-- Google Drive
-- Microsoft OneDrive
-- Dropbox
-- Amazon S3
-- S3-compatible storage
-- Cloudflare R2
-- private server
-- NAS
-- self-hosted storage
-
-Cloud storage documentation:
-
-docs/CLOUD_STORAGE.md
-
----
-
-## 6. AUDIT
-
-SURAYA records important system events.
-
-Audit events include:
-
-- Creator commands
-- Brain plans
-- Guardian decisions
-- Executor actions
-- execution errors
-- verification
-- final reports
-
-Current storage:
-
-data/audit.jsonl
-
----
-
-## 7. API
-
-### Health
-
-GET
-
-```text
-/h# SURAYA AI
-
-Private Personal AI Operating System.
-
-## Architecture
-
-Creator
-↓
-Brain
-↓
-Guardian
-↓
-Executor
-↓
-Tools
-
-## Current Foundation
-
-SURAYA currently contains:
-
-- Core runtime
-- Brain
-- Intent detection
-- Planner
-- Guardian
-- Guardian policy
-- Approval system
-- Executor
-- Tool registry
-- Memory
-- Model router
-- Local model abstraction
-- Cloud storage abstraction
-- Local cloud storage
-- Permissions
-- Secret abstraction
-- Audit logging
-- Knowledge base
-- Project manager
-- Research abstraction
-- Code abstraction
-- Media abstraction
-- Social abstraction
-- Finance abstraction
-- Wealth analysis
-- Analytics
-- Event bus
-- Agent abstraction
-- FastAPI backend
-- Android Creator Console
-- Integration tests
-- Docker deployment foundation
-
-## Important Principle
-
-The system is designed so that advanced tools cannot bypass Guardian controls.
-
-Sensitive operations require additional authorization.
-
-## Current Development State
+# SURAYA AI — Private Personal AI Operating System
 
 Version: 0.4.0
 
-The foundation and initial Android/API integration are implemented.
+SURAYA AI is a modular personal AI runtime built around the authority chain:
 
-The next major phase is production intelligence:
+**Creator → Brain → Guardian → Executor → Tools**
 
-1. Real model providers
-2. Structured tool calling
-3. Persistent context
-4. Secure authentication
-5. Sandboxed coding
-6. Git/GitHub
-7. Browser/research
-8. Voice
-9. Vision
-10. Media
-11. Social integrations
-12. Financial connectors
-13. Full Guardian Console
+The Guardian inspects actions and can block them or require explicit approval. This repository is a private control-plane foundation, not an unrestricted autonomous agent.
 
-## Old Projects
+## Current capabilities
 
-Previous projects are independent.
+- FastAPI control plane and health endpoints
+- Brain, planner, Guardian policy, approval manager, and executor
+- Tool registry with a built-in echo tool
+- Local persistent memory, audit log, and secret abstraction
+- Local cloud-storage adapter
+- Docker deployment foundation and automated tests
 
-They are not dependencies of this project.
+Provider integrations, Android console, social publishing, and real-money operations are not considered production-ready merely because their abstractions exist.
 
-They can be connected later after SURAYA AI is operational and authorized to manage them.ealth
+## Security boundary
+
+Only `GET /` and `GET /health` are public. Every other API route requires:
+
+```http
+Authorization: Bearer <SURAYA_API_TOKEN>
+```
+
+Set `SURAYA_API_TOKEN` to a high-entropy random secret in the deployment secret manager. If it is absent, protected routes fail closed with HTTP 503; invalid credentials receive HTTP 401. Never commit the token, put it in a frontend bundle, or send it in a URL.
+
+The secret store encrypts its complete payload at rest using Fernet. Generate `SURAYA_SECRET_KEY` with:
+
+```bash
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Store this key separately in the hosting provider's secret manager. Without it, secret read/write operations fail closed. Losing the key makes the encrypted secret file unrecoverable; back up the key separately from the data disk.
+
+The bearer token currently represents a single trusted operator. Before exposing this control plane to multiple users, add user identities, role-based access, MFA, token rotation/revocation, and an independent security review. Keep the service behind HTTPS and a restrictive network policy. Do not expose it directly to the public internet without those controls.
+
+## Local development
+
+Requirements: Python 3.11+.
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .
+pip install -r backend/requirements.txt
+cp env.example .env
+# Set SURAYA_API_TOKEN in your local environment before using protected routes.
+uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+```
+
+Run tests:
+
+```bash
+pytest -q
+```
+
+## Docker
+
+Build and run:
+
+```bash
+docker build -t suraya-ai .
+docker run --rm -p 8000:8000 \
+  -e SURAYA_API_TOKEN="$SURAYA_API_TOKEN" \
+  -v "$(pwd)/data:/app/data" \
+  suraya-ai
+```
+
+The `data/` directory contains local runtime state and must be backed up. Mount persistent storage in production. The container listens on port 8000.
+
+## Deployment preflight
+
+1. Provision a persistent disk for `/app/data`.
+2. Configure `SURAYA_API_TOKEN` and `SURAYA_SECRET_KEY` through the hosting provider's secret manager.
+3. Restrict ingress to HTTPS and trusted clients; do not publish the bearer token to browser code.
+4. Verify `GET /health` returns HTTP 200.
+5. Verify an unauthenticated `GET /status` returns HTTP 503 when the token is missing and HTTP 401 when credentials are invalid.
+6. Verify an authenticated `GET /status` and `POST /command` succeed.
+7. Confirm audit and memory files survive a container restart.
+8. Take and test a backup before enabling any external tools.
+
+## Docker Compose staging
+
+```bash
+cp env.example .env
+# Set SURAYA_API_TOKEN to a long random token.
+# Generate SURAYA_SECRET_KEY with the Fernet command above.
+docker compose config --quiet
+docker compose up -d --build
+docker compose ps
+curl -fsS http://127.0.0.1:8000/health
+```
+
+The API binds to loopback only. Put a TLS reverse proxy in front of it and keep the bearer token server-side. Compose mounts a named persistent volume at `/app/data`; back up that volume and the Fernet key separately. If the Fernet key is lost, encrypted secrets cannot be recovered.
+
+## Current limitations
+
+- Single shared bearer-token authentication; no end-user accounts or role separation.
+- Local state requires persistent storage and tested backups.
+- No production-grade multi-instance coordination.
+- Tool permissions and approvals are application controls, not a substitute for OS/container sandboxing.
+- No unrestricted autonomous financial transactions or custody of customer funds.
