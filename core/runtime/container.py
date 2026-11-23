@@ -69,7 +69,7 @@ def create_container(
     permissions = PermissionManager()
 
     secrets = SecretStore(
-        f"{data_dir}/secrets.json",
+        f"{data_dir}/secrets.enc",
     )
 
     runtime = SurayaRuntime(
