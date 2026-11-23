@@ -10,7 +10,8 @@ class LocalStorageProvider:
 
     def __init__(self, root: str = "data/cloud") -> None:
         self.root = Path(root).resolve()
-        self.root.mkdir(parents=True, exist_ok=True)
+        self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        os.chmod(self.root, 0o700)
 
     def _safe_path(self, value: str) -> Path:
         candidate = Path(value)
