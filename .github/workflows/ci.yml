@@ -37,3 +37,6 @@ jobs:
         run: pytest -q
       - name: Build deployment image
         run: docker build -t suraya-ai:ci .
+
+      - name: Validate Docker Compose configuration
+        run: SURAYA_API_TOKEN=ci-only-token SURAYA_SECRET_KEY=MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA= docker compose config --quiet
