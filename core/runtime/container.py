@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
+from pathlib import Path
 
 from core.audit.log import AuditLog
 from core.brain.brain import Brain
@@ -35,7 +37,11 @@ def create_container(
     *,
     data_dir: str = "data",
     audit_path: str = "data/audit.jsonl",
-) -> SurayaContainer:
+ ) -> SurayaContainer:
+    root = Path(data_dir)
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    os.chmod(root, 0o700)
+
     memory = MemoryStore(
         f"{data_dir}/memory.db"
     )
