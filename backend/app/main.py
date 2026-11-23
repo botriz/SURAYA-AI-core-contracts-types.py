@@ -320,20 +320,20 @@ def set_secret(
     key: str,
     request: SecretRequest,
 ) -> dict[str, Any]:
-    container.secrets.set(
-        key,
-        request.value,
-    )
+    try:
+        container.secrets.set(key, request.value)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail="Encrypted secret storage is not configured.") from exc
 
-    return {
-        "status": "stored",
-        "key": key,
-    }
+    return {"status": "stored", "key": key}
 
 
 @app.delete("/secrets/{key}")
 def delete_secret(key: str) -> dict[str, Any]:
-    deleted = container.secrets.delete(key)
+    try:
+        deleted = container.secrets.delete(key)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail="Encrypted secret storage is not configured.") from exc
 
     if not deleted:
         raise HTTPException(
@@ -369,8 +369,9 @@ def cloud_upload(
             "file": result,
         }
 
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Source file was not found.") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(
-            status_code=400,
-            detail=str(exc),
-        ) from exc
+        raise HTTPException(status_code=500, detail="Cloud storage operation failed.") from exc
