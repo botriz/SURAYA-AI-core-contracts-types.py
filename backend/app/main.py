@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import hmac
+import os
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from core.runtime.container import create_container
@@ -16,6 +19,30 @@ app = FastAPI(
 )
 
 container = create_container()
+
+
+@app.middleware("http")
+async def require_api_token(request: Request, call_next):
+    if request.method == "GET" and request.url.path in {"/", "/health"}:
+        return await call_next(request)
+
+    expected = os.environ.get("SURAYA_API_TOKEN", "").strip()
+    if not expected:
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "API access is not configured."},
+        )
+
+    authorization = request.headers.get("authorization", "")
+    scheme, _, supplied = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not supplied or not hmac.compare_digest(supplied, expected):
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Authentication required."},
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return await call_next(request)
 
 
 class CommandRequest(BaseModel):
