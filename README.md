@@ -29,6 +29,14 @@ Authorization: Bearer <SURAYA_API_TOKEN>
 
 Set `SURAYA_API_TOKEN` to a high-entropy random secret in the deployment secret manager. If it is absent, protected routes fail closed with HTTP 503; invalid credentials receive HTTP 401. Never commit the token, put it in a frontend bundle, or send it in a URL.
 
+The secret store encrypts its complete payload at rest using Fernet. Generate `SURAYA_SECRET_KEY` with:
+
+```bash
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Store this key separately in the hosting provider's secret manager. Without it, secret read/write operations fail closed. Losing the key makes the encrypted secret file unrecoverable; back up the key separately from the data disk.
+
 The bearer token currently represents a single trusted operator. Before exposing this control plane to multiple users, add user identities, role-based access, MFA, token rotation/revocation, and an independent security review. Keep the service behind HTTPS and a restrictive network policy. Do not expose it directly to the public internet without those controls.
 
 ## Local development
@@ -68,7 +76,7 @@ The `data/` directory contains local runtime state and must be backed up. Mount 
 ## Deployment preflight
 
 1. Provision a persistent disk for `/app/data`.
-2. Configure `SURAYA_API_TOKEN` through the hosting provider's secret manager.
+2. Configure `SURAYA_API_TOKEN` and `SURAYA_SECRET_KEY` through the hosting provider's secret manager.
 3. Restrict ingress to HTTPS and trusted clients; do not publish the bearer token to browser code.
 4. Verify `GET /health` returns HTTP 200.
 5. Verify an unauthenticated `GET /status` returns HTTP 503 when the token is missing and HTTP 401 when credentials are invalid.
