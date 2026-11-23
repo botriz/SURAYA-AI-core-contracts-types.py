@@ -18,7 +18,9 @@ app = FastAPI(
     description="Private Personal AI Operating System",
 )
 
-container = create_container()
+data_dir = os.environ.get("SURAYA_DATA_DIR", "data")
+audit_path = os.environ.get("SURAYA_AUDIT_PATH", str(Path(data_dir) / "audit.jsonl"))
+container = create_container(data_dir=data_dir, audit_path=audit_path)
 
 
 @app.middleware("http")
