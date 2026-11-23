@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 from pathlib import Path
 from threading import RLock
@@ -27,6 +28,7 @@ class MemoryStore:
             """
         )
         self._connection.commit()
+        os.chmod(self.path, 0o600)
 
     def put(self, key: str, value: Any) -> None:
         normalized = str(key).strip()
