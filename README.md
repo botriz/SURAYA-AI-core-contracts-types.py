@@ -84,6 +84,20 @@ The `data/` directory contains local runtime state and must be backed up. Mount 
 7. Confirm audit and memory files survive a container restart.
 8. Take and test a backup before enabling any external tools.
 
+## Docker Compose staging
+
+```bash
+cp env.example .env
+# Set SURAYA_API_TOKEN to a long random token.
+# Generate SURAYA_SECRET_KEY with the Fernet command above.
+docker compose config --quiet
+docker compose up -d --build
+docker compose ps
+curl -fsS http://127.0.0.1:8000/health
+```
+
+The API binds to loopback only. Put a TLS reverse proxy in front of it and keep the bearer token server-side. Compose mounts a named persistent volume at `/app/data`; back up that volume and the Fernet key separately. If the Fernet key is lost, encrypted secrets cannot be recovered.
+
 ## Current limitations
 
 - Single shared bearer-token authentication; no end-user accounts or role separation.
